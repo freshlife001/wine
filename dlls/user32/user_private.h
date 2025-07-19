@@ -66,6 +66,7 @@ static inline struct user_thread_info *get_user_thread_info(void)
 }
 
 extern HMODULE user32_module DECLSPEC_HIDDEN;
+extern BOOL enable_mouse_in_pointer DECLSPEC_HIDDEN;
 
 struct dce;
 struct tagWND;

@@ -748,6 +748,7 @@ TrackMouseEvent (TRACKMOUSEEVENT *ptme)
 
     return TRUE;
 }
+BOOL enable_mouse_in_pointer = FALSE;
 
 /***********************************************************************
  *		EnableMouseInPointer (USER32.@)
@@ -756,8 +757,8 @@ BOOL WINAPI EnableMouseInPointer(BOOL enable)
 {
     FIXME("(%#x) stub\n", enable);
 
-    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
-    return FALSE;
+    enable_mouse_in_pointer = TRUE;
+    return TRUE;
 }
 
 static DWORD CALLBACK devnotify_window_callback(HANDLE handle, DWORD flags, DEV_BROADCAST_HDR *header)

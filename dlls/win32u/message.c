@@ -1371,6 +1371,35 @@ static BOOL process_keyboard_message( MSG *msg, UINT hw_id, HWND hwnd_filter,
     return TRUE;
 }
 
+
+
+#define POINTER_MESSAGE_FLAG_NEW                      0x00000001
+#define POINTER_MESSAGE_FLAG_INRANGE                  0x00000002
+#define POINTER_MESSAGE_FLAG_INCONTACT                0x00000004
+#define POINTER_MESSAGE_FLAG_FIRSTBUTTON              0x00000010
+#define POINTER_MESSAGE_FLAG_SECONDBUTTON             0x00000020
+#define POINTER_MESSAGE_FLAG_THIRDBUTTON              0x00000040
+#define POINTER_MESSAGE_FLAG_FOURTHBUTTON             0x00000080
+#define POINTER_MESSAGE_FLAG_FIFTHBUTTON              0x00000100
+#define POINTER_MESSAGE_FLAG_PRIMARY                  0x00002000
+#define POINTER_MESSAGE_FLAG_CONFIDENCE               0x00004000
+#define POINTER_MESSAGE_FLAG_CANCELED                 0x00008000
+#define GET_POINTERID_WPARAM(wparam)                  (LOWORD(wparam))
+#define IS_POINTER_FLAG_SET_WPARAM(wparam, flags)     ((HIWORD(wparam) & (flags)) == (flags))
+#define IS_POINTER_NEW_WPARAM(wparam)                 IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_NEW)
+#define IS_POINTER_INRANGE_WPARAM(wparam)             IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_INRANGE)
+#define IS_POINTER_INCONTACT_WPARAM(wparam)           IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_INCONTACT)
+#define IS_POINTER_FIRSTBUTTON_WPARAM(wparam)         IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_FIRSTBUTTON)
+#define IS_POINTER_SECONDBUTTON_WPARAM(wparam)        IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_SECONDBUTTON)
+#define IS_POINTER_THIRDBUTTON_WPARAM(wparam)         IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_THIRDBUTTON)
+#define IS_POINTER_FOURTHBUTTON_WPARAM(wparam)        IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_FOURTHBUTTON)
+#define IS_POINTER_FIFTHBUTTON_WPARAM(wparam)         IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_FIFTHBUTTON)
+#define IS_POINTER_PRIMARY_WPARAM(wparam)             IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_PRIMARY)
+#define HAS_POINTER_CONFIDENCE_WPARAM(wparam)         IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_CONFIDENCE)
+#define IS_POINTER_CANCELED_WPARAM(wparam)            IS_POINTER_FLAG_SET_WPARAM(wparam, POINTER_MESSAGE_FLAG_CANCELED)
+
+#define enable_mouse_in_pointer TRUE
+
 /***********************************************************************
  *          process_mouse_message
  *
@@ -1580,6 +1609,39 @@ static BOOL process_mouse_message( MSG *msg, UINT hw_id, ULONG_PTR extra_info, H
     /* Windows sends the normal mouse message as the message parameter
        in the WM_SETCURSOR message even if it's non-client mouse message */
     send_message( msg->hwnd, WM_SETCURSOR, (WPARAM)msg->hwnd, MAKELONG( hittest, msg->message ));
+    
+    if (enable_mouse_in_pointer) switch (msg->message)
+    {
+    case WM_MOUSEMOVE:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP:
+    case WM_XBUTTONDOWN:
+    case WM_XBUTTONUP:
+    {
+        WORD flags = POINTER_MESSAGE_FLAG_INRANGE|POINTER_MESSAGE_FLAG_INCONTACT|POINTER_MESSAGE_FLAG_PRIMARY;
+        if (msg->message == WM_LBUTTONDOWN) flags |= POINTER_MESSAGE_FLAG_FIRSTBUTTON;
+        if (msg->message == WM_RBUTTONDOWN) flags |= POINTER_MESSAGE_FLAG_SECONDBUTTON;
+        if (msg->message == WM_MBUTTONDOWN) flags |= POINTER_MESSAGE_FLAG_THIRDBUTTON;
+        if (msg->message == WM_XBUTTONDOWN && LOWORD( msg->wParam ) == MK_LBUTTON) flags |= POINTER_MESSAGE_FLAG_FIRSTBUTTON;
+        if (msg->message == WM_XBUTTONDOWN && LOWORD( msg->wParam ) == MK_RBUTTON) flags |= POINTER_MESSAGE_FLAG_SECONDBUTTON;
+        if (msg->message == WM_XBUTTONDOWN && LOWORD( msg->wParam ) == MK_MBUTTON) flags |= POINTER_MESSAGE_FLAG_THIRDBUTTON;
+        if (msg->message == WM_XBUTTONDOWN && LOWORD( msg->wParam ) == MK_XBUTTON1) flags |= POINTER_MESSAGE_FLAG_FOURTHBUTTON;
+        if (msg->message == WM_XBUTTONDOWN && LOWORD( msg->wParam ) == MK_XBUTTON2) flags |= POINTER_MESSAGE_FLAG_FIFTHBUTTON;
+        send_message( msg->hwnd, WM_POINTERUPDATE, MAKELONG( 1, flags ), MAKELONG( msg->pt.x, msg->pt.y ) );
+        break;
+    }
+    case WM_MOUSEWHEEL:
+        send_message( msg->hwnd, WM_POINTERWHEEL, MAKELONG( 1, HIWORD( msg->wParam ) ), MAKELONG( msg->pt.x, msg->pt.y ) );
+        break;
+    case WM_MOUSEHWHEEL:
+        send_message( msg->hwnd, WM_POINTERHWHEEL, MAKELONG( 1, HIWORD( msg->wParam ) ), MAKELONG( msg->pt.x, msg->pt.y ) );
+        break;
+    }
+
 
     msg->message = message;
     return !eat_msg;
